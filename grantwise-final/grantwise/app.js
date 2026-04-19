@@ -37,7 +37,17 @@ const TIPS = {
 // ── INIT ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   const { data: { session } } = await sb.auth.getSession()
-  if (!session) { window.location.href = 'login.html'; return }
+  if (!session) {
+    sb.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        currentUser = session.user
+        loadProfile()
+      } else {
+        window.location.href = 'login.html'
+      }
+    })
+    return
+  }
 
   currentUser = session.user
   await loadProfile()
