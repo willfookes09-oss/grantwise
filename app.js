@@ -3,13 +3,12 @@
    Full backend: Supabase + Stripe
    =================================== */
 
-// ── CONFIG — PASTE YOUR KEYS HERE ──────────────────────
+// ── CONFIG ──────────────────────────────────────────────
 const SUPABASE_URL      = 'https://pufidlfcdosihqcnfcdu.supabase.co'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1ZmlkbGZjZG9zaWhxY25mY2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MjY4MjQsImV4cCI6MjA5MjEwMjgyNH0.RzpCrWETYphY-1dV8JOp_7E-DcjZrN26HLGBqfxg110'
 const STRIPE_STARTER_LINK = 'https://buy.stripe.com/4gMbIU5vlfbrcCW0rG8N207'
 const STRIPE_GROWTH_LINK  = 'https://buy.stripe.com/3cIeV66zp8N30Ue3DS8N208'
 const STRIPE_PRO_LINK     = 'https://buy.stripe.com/dRm4gs2j9d3jcCW4HW8N209'
-const ANTHROPIC_KEY_STORAGE = 'grantwise_anthropic_key'
 
 // ── SUPABASE ────────────────────────────────────────────
 const { createClient } = supabase
@@ -23,7 +22,8 @@ let selectedSection   = 'executive summary'
 let currentText       = ''
 
 const TRIAL_DAYS    = 7
-const STARTER_LIMIT = 20
+const STARTER_LIMIT = 15
+const GROWTH_LIMIT  = 40
 
 const TIPS = {
   'executive summary':   ['Keep it to 1–2 paragraphs — funders read dozens.','Lead with the problem, then solution, then the ask.','Mention your EIN and 501(c)(3) for credibility.'],
@@ -57,13 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
     wireGrantTypes()
     wireSectionPills()
     renderTips()
-    loadApiKey()
   })
 })
 
+// ── LOAD PROFILE ────────────────────────────────────────
 async function loadProfile() {
-  let { data, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single()
-  
+  let { data } = await sb.from('profiles').select('*').eq('id', currentUser.id).single()
+
   if (!data) {
     const newProfile = {
       id: currentUser.id,
@@ -76,11 +76,13 @@ async function loadProfile() {
     await sb.from('profiles').upsert(newProfile)
     data = newProfile
   }
-  
+
   userProfile = data
   renderStatus()
   renderAccountView()
 }
+
+// ── ACCESS CHECK ────────────────────────────────────────
 function checkAccess() {
   if (!userProfile) return
   const plan = userProfile.plan
@@ -96,6 +98,16 @@ function checkAccess() {
   showPaywall()
 }
 
+function canGenerate() {
+  if (!userProfile) return false
+  const plan = userProfile.plan
+  if (plan === 'pro') return true
+  if (plan === 'growth') return (userProfile.proposals_used || 0) < GROWTH_LIMIT
+  if (plan === 'starter') return (userProfile.proposals_used || 0) < STARTER_LIMIT
+  if (plan === 'trial') return trialDaysLeft() > 0
+  return false
+}
+
 function trialDaysLeft() {
   if (!userProfile || userProfile.plan !== 'trial') return null
   const trialStart = new Date(userProfile.trial_start)
@@ -104,37 +116,39 @@ function trialDaysLeft() {
   return Math.max(0, TRIAL_DAYS - daysUsed)
 }
 
-// ── RENDER STATUS BAR ────────────────────────────────────
+// ── RENDER STATUS ────────────────────────────────────────
 function renderStatus() {
   if (!userProfile) return
   const plan = userProfile.plan
   const used = userProfile.proposals_used || 0
 
-  // Sidebar plan badge
   const planBadge = document.getElementById('planBadge')
-  if (planBadge) planBadge.textContent = plan === 'trial' ? 'Trial' : plan === 'starter' ? 'Starter' : 'Pro'
-
-  // Usage bar
   const bar = document.getElementById('usageBar')
   const label = document.getElementById('usageLabel')
   const topbar = document.getElementById('topbarStatus')
+  const countdown = document.getElementById('trialCountdown')
+
+  if (planBadge) planBadge.textContent = plan === 'trial' ? 'Trial' : plan === 'starter' ? 'Starter' : plan === 'growth' ? 'Growth' : 'Pro'
 
   if (plan === 'pro') {
     if (bar) bar.style.width = '20%'
     if (label) label.textContent = 'Unlimited proposals'
-    if (topbar) topbar.textContent = '✦ Pro — unlimited'
+    if (topbar) topbar.textContent = '✦ Pro'
+  } else if (plan === 'growth') {
+    const pct = Math.min(100, (used / GROWTH_LIMIT) * 100)
+    if (bar) bar.style.width = pct + '%'
+    if (label) label.textContent = `${used} / ${GROWTH_LIMIT} proposals`
+    if (topbar) topbar.textContent = `⚡ ${GROWTH_LIMIT - used} left`
   } else if (plan === 'starter') {
     const pct = Math.min(100, (used / STARTER_LIMIT) * 100)
     if (bar) bar.style.width = pct + '%'
     if (label) label.textContent = `${used} / ${STARTER_LIMIT} proposals`
     if (topbar) topbar.textContent = `⚡ ${STARTER_LIMIT - used} left`
   } else {
-    // Trial
     const days = trialDaysLeft()
     if (bar) bar.style.width = ((TRIAL_DAYS - days) / TRIAL_DAYS * 100) + '%'
     if (label) label.textContent = `${used} proposals written`
     if (topbar) topbar.textContent = `⏱ ${days}d trial left`
-    const countdown = document.getElementById('trialCountdown')
     if (countdown) countdown.textContent = days > 0 ? `${days} days left in trial` : 'Trial ended'
   }
 }
@@ -145,8 +159,7 @@ function showPaywall() {
 }
 
 function checkout(plan) {
-  const url = plan === 'pro' ? STRIPE_PRO_LINK : STRIPE_STARTER_LINK
-  // Pass email so Stripe pre-fills it
+  const url = plan === 'pro' ? STRIPE_PRO_LINK : plan === 'growth' ? STRIPE_GROWTH_LINK : STRIPE_STARTER_LINK
   const fullUrl = url + '?prefilled_email=' + encodeURIComponent(currentUser.email)
   window.open(fullUrl, '_blank')
 }
@@ -203,35 +216,6 @@ function renderTips() {
   list.innerHTML = tips.map(t => `<div class="tip-item"><div class="tip-dot"></div><span>${t}</span></div>`).join('')
 }
 
-// ── API KEY ───────────────────────────────────────────────
-function loadApiKey() {
-  const key = localStorage.getItem(ANTHROPIC_KEY_STORAGE)
-  if (key) {
-    const el = document.getElementById('apiKeyInput')
-    const el2 = document.getElementById('apiKeyAccount')
-    if (el) el.value = key
-    if (el2) el2.value = key
-  }
-}
-
-function saveApiKey() {
-  const val = document.getElementById('apiKeyInput')?.value?.trim()
-  if (!val) return
-  localStorage.setItem(ANTHROPIC_KEY_STORAGE, val)
-  const el2 = document.getElementById('apiKeyAccount')
-  if (el2) el2.value = val
-  flashBtn(document.querySelector('#view-write .save-key-btn'))
-}
-
-function saveApiKeyAccount() {
-  const val = document.getElementById('apiKeyAccount')?.value?.trim()
-  if (!val) return
-  localStorage.setItem(ANTHROPIC_KEY_STORAGE, val)
-  const el = document.getElementById('apiKeyInput')
-  if (el) el.value = val
-  flashBtn(document.querySelector('#view-account .save-key-btn'))
-}
-
 // ── GENERATE ─────────────────────────────────────────────
 async function generate() {
   if (!canGenerate()) { showPaywall(); return }
@@ -251,7 +235,7 @@ async function generate() {
   btn.disabled = true
   btn.innerHTML = '<span class="spin-inline"></span> Writing…'
   card.classList.add('generating')
-  body.innerHTML = '<span id="streamOut"></span><span class="cursor"></span>'
+  body.innerHTML = '<span id="streamOut"></span>'
 
   let fullText = ''
 
@@ -286,7 +270,7 @@ async function generate() {
     renderStatus()
 
   } catch(err) {
-    body.innerHTML = `<span style="color:#b43232">Error: ${esc(err.message)}\n\nPlease try again.</span>`
+    body.innerHTML = `<span style="color:#b43232">Error: ${esc(err.message)}</span>`
   }
 
   card.classList.remove('generating')
@@ -294,19 +278,7 @@ async function generate() {
   btn.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0 1 12 2v5h4a1 1 0 0 1 .82 1.573l-7 10A1 1 0 0 1 8 18v-5H4a1 1 0 0 1-.82-1.573l7-10a1 1 0 0 1 1.12-.38z" clip-rule="evenodd"/></svg> Generate section`
 }
 
-
-
-function canGenerate() {
-  if (!userProfile) return false
-  const plan = userProfile.plan
-  if (plan === 'pro') return true
-  if (plan === 'starter') return (userProfile.proposals_used || 0) < STARTER_LIMIT
-  // trial
-  const days = trialDaysLeft()
-  return days > 0
-}
-
-// ── SAVE PROPOSAL TO SUPABASE ─────────────────────────────
+// ── SAVE PROPOSAL ─────────────────────────────────────────
 async function saveProposal() {
   if (!currentText) return
   const { error } = await sb.from('proposals').insert({
@@ -318,13 +290,10 @@ async function saveProposal() {
     created_at: new Date().toISOString(),
   })
   if (error) { showToast('Error saving — ' + error.message); return }
-
-  const btn = document.querySelector('.card-action-btn:nth-child(2)')
-  if (btn) { btn.classList.add('success'); btn.textContent = '✓ Saved'; setTimeout(() => { btn.classList.remove('success'); btn.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M5 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14l-5-2.5L5 18V4z"/></svg> Save` }, 1800) }
   showToast('Saved to My proposals.')
 }
 
-// ── LOAD PROPOSALS FROM SUPABASE ──────────────────────────
+// ── LOAD PROPOSALS ──────────────────────────────────────
 async function loadProposals() {
   const grid = document.getElementById('proposalsGrid')
   if (!grid) return
@@ -390,17 +359,13 @@ function renderAccountView() {
   document.getElementById('acctEmail').textContent  = userProfile.email || currentUser.email
   document.getElementById('acctPlan').textContent   = cap(userProfile.plan || 'trial')
   document.getElementById('acctTrial').textContent  = userProfile.plan === 'trial' ? (days + ' days left') : 'N/A'
-  document.getElementById('acctUsage').textContent  = (userProfile.proposals_used || 0) + (userProfile.plan === 'pro' ? ' (unlimited)' : userProfile.plan === 'starter' ? ` / ${STARTER_LIMIT}` : '')
-  loadApiKey()
+  document.getElementById('acctUsage').textContent  = (userProfile.proposals_used || 0) + (userProfile.plan === 'pro' ? ' (unlimited)' : userProfile.plan === 'growth' ? ` / ${GROWTH_LIMIT}` : userProfile.plan === 'starter' ? ` / ${STARTER_LIMIT}` : '')
 }
 
 // ── COPY OUTPUT ───────────────────────────────────────────
 function copyOutput() {
   if (!currentText) return
-  navigator.clipboard.writeText(currentText).then(() => {
-    const btns = document.querySelectorAll('#view-write .card-action-btn')
-    if (btns[0]) { btns[0].classList.add('success'); btns[0].textContent = '✓ Copied'; setTimeout(() => { btns[0].classList.remove('success'); btns[0].innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M8 3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h1.5A1.5 1.5 0 0 1 15 4.5v11A1.5 1.5 0 0 1 13.5 17h-7A1.5 1.5 0 0 1 5 15.5v-11A1.5 1.5 0 0 1 6.5 3H8z"/></svg> Copy` }, 1800) }
-  })
+  navigator.clipboard.writeText(currentText).then(() => showToast('Copied!'))
 }
 
 // ── HELPERS ───────────────────────────────────────────────
