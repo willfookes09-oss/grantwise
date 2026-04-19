@@ -102,11 +102,13 @@ function checkAccess() {
 function canGenerate() {
   if (!userProfile) return false
   const plan = userProfile.plan
+  const used = userProfile.proposals_used || 0
   if (plan === 'pro') return true
-  if (plan === 'growth') return (userProfile.proposals_used || 0) < GROWTH_LIMIT
-  if (plan === 'starter') return (userProfile.proposals_used || 0) < STARTER_LIMIT
-  if (plan === 'trial') return (userProfile.proposals_used || 0) < FREE_LIMIT
-  return false
+  if (plan === 'growth') return used < GROWTH_LIMIT
+  if (plan === 'starter') return used < STARTER_LIMIT
+  if (plan === 'trial') return used < FREE_LIMIT
+  return used < FREE_LIMIT
+}
 }
 
 function trialDaysLeft() {
