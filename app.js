@@ -61,11 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 })
 
-// ── LOAD PROFILE FROM SUPABASE ──────────────────────────
 async function loadProfile() {
-  const { data, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single()
-  if (error || !data) {
-    // Create profile if missing
+  let { data, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single()
+  
+  if (!data) {
     const newProfile = {
       id: currentUser.id,
       email: currentUser.email,
@@ -74,16 +73,14 @@ async function loadProfile() {
       plan: 'trial',
       proposals_used: 0,
     }
-    await sb.from('profiles').insert(newProfile)
-    userProfile = newProfile
-  } else {
-    userProfile = data
+    await sb.from('profiles').upsert(newProfile)
+    data = newProfile
   }
+  
+  userProfile = data
   renderStatus()
   renderAccountView()
 }
-
-// ── TRIAL / ACCESS CHECK ────────────────────────────────
 function checkAccess() {
   if (!userProfile) return
   const plan = userProfile.plan
