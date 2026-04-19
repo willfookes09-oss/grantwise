@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GrantWise — Sign In</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --cream: #faf7f2; --cream2: #f3ede3; --olive: #4a5c3a; --olive-light: #6b7f58;
+      --brown: #2e1f0e; --brown2: #5c3d1e; --text: #1e1a14; --text2: #6b6050; --text3: #a8998a;
+      --border: rgba(46,31,14,.1); --border-md: rgba(46,31,14,.18);
+      --ff-head: 'Playfair Display', serif; --ff-body: 'Lato', sans-serif;
+    }
+    html, body { height: 100%; background: var(--cream); font-family: var(--ff-body); color: var(--text); -webkit-font-smoothing: antialiased; }
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+
+    .split { display: flex; width: 100%; max-width: 900px; min-height: 560px; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 80px rgba(46,31,14,.12); }
+
+    .left-panel {
+      width: 44%;
+      background: var(--brown);
+      padding: 52px 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark { width: 32px; height: 32px; background: var(--olive-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: var(--ff-head); font-size: 17px; font-weight: 700; color: var(--cream); }
+    .brand-name { font-family: var(--ff-head); font-size: 19px; font-weight: 600; color: var(--cream); }
+
+    .left-copy { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 32px 0; }
+    .left-headline { font-family: var(--ff-head); font-size: 28px; font-weight: 600; color: var(--cream); line-height: 1.3; margin-bottom: 16px; }
+    .left-sub { font-size: 14px; color: rgba(250,247,242,.55); line-height: 1.7; }
+
+    .stats { display: flex; flex-direction: column; gap: 12px; }
+    .stat { display: flex; align-items: center; gap: 10px; }
+    .stat-num { font-family: var(--ff-head); font-size: 20px; font-weight: 600; color: #c9d97a; }
+    .stat-label { font-size: 12px; color: rgba(250,247,242,.45); }
+
+    .right-panel { flex: 1; background: #fff; padding: 52px 44px; display: flex; flex-direction: column; justify-content: center; }
+
+    .form-title { font-family: var(--ff-head); font-size: 24px; font-weight: 600; color: var(--brown); margin-bottom: 6px; }
+    .form-sub { font-size: 13px; color: var(--text3); margin-bottom: 32px; }
+
+    .tabs { display: flex; gap: 0; margin-bottom: 28px; border-bottom: 1.5px solid var(--border); }
+    .tab { padding: 8px 20px; font-size: 14px; font-weight: 700; color: var(--text3); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1.5px; background: none; border-top: none; border-left: none; border-right: none; font-family: var(--ff-body); transition: all .14s ease; }
+    .tab.active { color: var(--olive); border-bottom-color: var(--olive); }
+
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .field label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: var(--text3); }
+    .field input { background: var(--cream); border: 1.5px solid var(--border); border-radius: 9px; padding: 11px 14px; font-size: 14px; font-family: var(--ff-body); color: var(--text); outline: none; transition: border-color .14s ease; }
+    .field input:focus { border-color: var(--olive); }
+    .field input::placeholder { color: var(--text3); }
+
+    .submit-btn { width: 100%; background: var(--olive); color: var(--cream); border: none; border-radius: 9px; padding: 13px; font-size: 14px; font-weight: 700; font-family: var(--ff-body); cursor: pointer; margin-top: 4px; transition: opacity .14s ease; }
+    .submit-btn:hover { opacity: .87; }
+    .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    .trial-badge { background: rgba(74,92,58,.08); border: 1px solid rgba(74,92,58,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--olive); text-align: center; margin-bottom: 20px; line-height: 1.5; }
+
+    .error-msg { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #b91c1c; margin-bottom: 16px; display: none; }
+    .success-msg { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #166534; margin-bottom: 16px; display: none; }
+
+    @media (max-width: 680px) {
+      .split { flex-direction: column; }
+      .left-panel { width: 100%; padding: 32px 28px; }
+      .stats { flex-direction: row; flex-wrap: wrap; }
+      .right-panel { padding: 32px 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="split">
+    <div class="left-panel">
+      <div class="brand">
+        <div class="brand-mark">G</div>
+        <span class="brand-name">GrantWise</span>
+      </div>
+      <div class="left-copy">
+        <div class="left-headline">Win more grants.<br>Write faster.</div>
+        <div class="left-sub">AI-powered grant proposals for small nonprofits. Cut 80% of writing time and submit more applications than ever before.</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="stat-num">80%</span><span class="stat-label">less time writing proposals</span></div>
+        <div class="stat"><span class="stat-num">$3.4B</span><span class="stat-label">grant market we help you access</span></div>
+        <div class="stat"><span class="stat-num">7-day</span><span class="stat-label">free trial, no card needed</span></div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="form-title">Get started</div>
+      <div class="form-sub">7-day free trial — no credit card required</div>
+
+      <div class="tabs">
+        <button class="tab active" id="signupTab" onclick="switchTab('signup')">Create account</button>
+        <button class="tab" id="signinTab" onclick="switchTab('signin')">Sign in</button>
+      </div>
+
+      <div class="trial-badge" id="trialBadge">✦ 7-day free trial · Full access · No credit card</div>
+
+      <div class="error-msg" id="errorMsg"></div>
+      <div class="success-msg" id="successMsg"></div>
+
+      <div id="signupForm">
+        <div class="field"><label>Organization name</label><input type="text" id="orgName" placeholder="Chicago Youth STEM Initiative"/></div>
+        <div class="field"><label>Email address</label><input type="email" id="signupEmail" placeholder="you@nonprofit.org"/></div>
+        <div class="field"><label>Password</label><input type="password" id="signupPassword" placeholder="At least 8 characters"/></div>
+        <button class="submit-btn" id="signupBtn" onclick="signUp()">Start free trial →</button>
+      </div>
+
+      <div id="signinForm" style="display:none">
+        <div class="field"><label>Email address</label><input type="email" id="signinEmail" placeholder="you@nonprofit.org"/></div>
+        <div class="field"><label>Password</label><input type="password" id="signinPassword" placeholder="Your password"/></div>
+        <button class="submit-btn" id="signinBtn" onclick="signIn()">Sign in →</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── PASTE YOUR SUPABASE URL AND ANON KEY HERE ──
+    const SUPABASE_URL = 'https://pufidlfcdosihqcnfcdu.supabase.co'
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1ZmlkbGZjZG9zaWhxY25mY2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MjY4MjQsImV4cCI6MjA5MjEwMjgyNH0.RzpCrWETYphY-1dV8JOp_7E-DcjZrN26HLGBqfxg110'
+    const { createClient } = supabase
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+    // Redirect if already logged in
+    sb.auth.getSession().then(({ data }) => {
+      if (data.session) window.location.href = 'index.html'
+    })
+
+    function switchTab(tab) {
+      document.getElementById('signupForm').style.display = tab === 'signup' ? '' : 'none'
+      document.getElementById('signinForm').style.display = tab === 'signin' ? '' : 'none'
+      document.getElementById('trialBadge').style.display = tab === 'signup' ? '' : 'none'
+      document.getElementById('signupTab').classList.toggle('active', tab === 'signup')
+      document.getElementById('signinTab').classList.toggle('active', tab === 'signin')
+      hideMessages()
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMsg')
+      el.textContent = msg; el.style.display = ''
+      document.getElementById('successMsg').style.display = 'none'
+    }
+
+    function showSuccess(msg) {
+      const el = document.getElementById('successMsg')
+      el.textContent = msg; el.style.display = ''
+      document.getElementById('errorMsg').style.display = 'none'
+    }
+
+    function hideMessages() {
+      document.getElementById('errorMsg').style.display = 'none'
+      document.getElementById('successMsg').style.display = 'none'
+    }
+
+    async function signUp() {
+      const orgName = document.getElementById('orgName').value.trim()
+      const email = document.getElementById('signupEmail').value.trim()
+      const password = document.getElementById('signupPassword').value
+      if (!orgName) return showError('Please enter your organization name.')
+      if (!email) return showError('Please enter your email.')
+      if (password.length < 8) return showError('Password must be at least 8 characters.')
+
+      const btn = document.getElementById('signupBtn')
+      btn.disabled = true; btn.textContent = 'Creating account…'
+
+      const { data, error } = await sb.auth.signUp({
+        email, password,
+        options: { data: { org_name: orgName } }
+      })
+
+      if (error) { showError(error.message); btn.disabled = false; btn.textContent = 'Start free trial →'; return }
+
+      // Create user profile in DB
+      if (data.user) {
+        await sb.from('profiles').upsert({
+          id: data.user.id,
+          org_name: orgName,
+          email: email,
+          trial_start: new Date().toISOString(),
+          plan: 'trial',
+          proposals_used: 0
+        })
+      }
+
+      showSuccess('Account created! Check your email to confirm, then sign in.')
+      btn.disabled = false; btn.textContent = 'Start free trial →'
+    }
+
+    async function signIn() {
+      const email = document.getElementById('signinEmail').value.trim()
+      const password = document.getElementById('signinPassword').value
+      if (!email || !password) return showError('Please enter your email and password.')
+
+      const btn = document.getElementById('signinBtn')
+      btn.disabled = true; btn.textContent = 'Signing in…'
+
+      const { error } = await sb.auth.signInWithPassword({ email, password })
+
+      if (error) { showError(error.message); btn.disabled = false; btn.textContent = 'Sign in →'; return }
+
+      window.location.href = 'index.html'
+    }
+  </script>
+</body>
+</html>
