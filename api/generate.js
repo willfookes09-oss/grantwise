@@ -47,7 +47,7 @@ Write only the "${section}" — no headings, no preamble. Polished, submission-r
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'model: 'claude-sonnet-4-5',',
+       model: 'claude-sonnet-4-5',
         max_tokens: 1200,
         stream: false,
         system: 'You are an expert nonprofit grant writer. Write professionally and compellingly. Avoid AI clichés: never use words like tapestry, delve, unleash, it is important to note, navigate, landscape, foster, unlock. Write like a seasoned human grant writer with real passion for the mission.',
