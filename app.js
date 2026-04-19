@@ -279,7 +279,7 @@ async function generate() {
     }
 
     const data = await res.json()
-    fullText = data.content || ''
+    fullText = data.content?.[0]?.text || ''
     body.innerHTML = `<span style="color:var(--text)">${esc(fullText)}</span>`
     currentText = fullText
 
