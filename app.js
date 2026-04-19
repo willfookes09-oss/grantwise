@@ -237,13 +237,8 @@ function saveApiKeyAccount() {
 
 // ── GENERATE ─────────────────────────────────────────────
 async function generate() {
-  // Access check
-  if (!canGenerate()) {
-    showPaywall()
-    return
-  }
+  if (!canGenerate()) { showPaywall(); return }
 
-  const apiKey  = localStorage.getItem(ANTHROPIC_KEY_STORAGE)
   const mission = document.getElementById('missionInput')?.value?.trim()
   const project = document.getElementById('projectInput')?.value?.trim()
   const funder  = document.getElementById('funderInput')?.value?.trim()
@@ -251,7 +246,6 @@ async function generate() {
 
   if (!mission) { shake(document.getElementById('missionInput')); showToast('Please describe your mission.'); return }
   if (!project) { shake(document.getElementById('projectInput')); showToast('Please describe your project.'); return }
-  if (!apiKey)  { shake(document.getElementById('apiKeyInput'));  showToast('Please save your Anthropic API key.'); return }
 
   const btn  = document.getElementById('writeBtn')
   const card = document.getElementById('outputCard')
@@ -262,81 +256,48 @@ async function generate() {
   card.classList.add('generating')
   body.innerHTML = '<span id="streamOut"></span><span class="cursor"></span>'
 
-  const orgCtx = userProfile?.org_name ? `Organization: ${userProfile.org_name}.` : ''
-  const prompt = `You are an expert nonprofit grant writer. Write a compelling "${selectedSection}" for a ${selectedGrantType} proposal.
-
-${orgCtx}
-Mission: ${mission}
-Funder: ${funder || 'not specified'}
-Project: ${project}
-Amount requested: ${amount || 'not specified'}
-
-Write only the "${selectedSection}" — no headings, no preamble. Polished, submission-ready text in 2–4 paragraphs. Be specific to the information provided.`
-
   let fullText = ''
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/generate', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1200,
-        stream: true,
-        system: 'You are an expert nonprofit grant writer with 20 years of experience. Write in a professional, mission-driven voice. Be specific, avoid jargon. No placeholder text.',
-        messages: [{ role: 'user', content: prompt }],
+        grantType: selectedGrantType,
+        section: selectedSection,
+        mission,
+        funder,
+        project,
+        amount,
+        orgName: userProfile?.org_name || '',
       }),
     })
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error?.message || `API error ${res.status}`)
+      throw new Error(err?.error || `API error ${res.status}`)
     }
 
-    const reader  = res.body.getReader()
-    const decoder = new TextDecoder()
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      for (const line of chunk.split('\n')) {
-        if (!line.startsWith('data: ')) continue
-        const data = line.slice(6).trim()
-        if (data === '[DONE]') continue
-        try {
-          const p = JSON.parse(data)
-          if (p?.delta?.text) {
-            fullText += p.delta.text
-            const el = document.getElementById('streamOut')
-            if (el) el.textContent = fullText
-          }
-        } catch(e) {}
-      }
-    }
-
+    const data = await res.json()
+    fullText = data.content || ''
     body.innerHTML = `<span style="color:var(--text)">${esc(fullText)}</span>`
     currentText = fullText
 
-    // Increment usage count in Supabase
     const newCount = (userProfile.proposals_used || 0) + 1
     await sb.from('profiles').update({ proposals_used: newCount }).eq('id', currentUser.id)
     userProfile.proposals_used = newCount
     renderStatus()
 
   } catch(err) {
-    body.innerHTML = `<span style="color:#b43232">Error: ${esc(err.message)}\n\nCheck your API key and try again.</span>`
+    body.innerHTML = `<span style="color:#b43232">Error: ${esc(err.message)}\n\nPlease try again.</span>`
   }
 
   card.classList.remove('generating')
   btn.disabled = false
   btn.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0 1 12 2v5h4a1 1 0 0 1 .82 1.573l-7 10A1 1 0 0 1 8 18v-5H4a1 1 0 0 1-.82-1.573l7-10a1 1 0 0 1 1.12-.38z" clip-rule="evenodd"/></svg> Generate section`
 }
+
+
 
 function canGenerate() {
   if (!userProfile) return false
