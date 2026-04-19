@@ -189,8 +189,8 @@
         })
       }
 
-      showSuccess('Account created! Check your email to confirm, then sign in.')
-      btn.disabled = false; btn.textContent = 'Start free trial →'
+      setTimeout(() => { window.location.href = 'index.html' }, 1500)
+          btn.disabled = false; btn.textContent = 'Start free trial →'
     }
 
     async function signIn() {
