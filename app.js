@@ -84,16 +84,16 @@ async function loadProfile() {
 function checkAccess() {
   if (!userProfile) return
   const plan = userProfile.plan
-
-  if (plan === 'pro') return // full access
+  if (plan === 'pro') return
+  if (plan === 'growth' && userProfile.proposals_used < GROWTH_LIMIT) return
   if (plan === 'starter' && userProfile.proposals_used < STARTER_LIMIT) return
-
   if (plan === 'trial') {
     const trialStart = new Date(userProfile.trial_start)
     const now = new Date()
     const daysUsed = Math.floor((now - trialStart) / (1000 * 60 * 60 * 24))
-    if (daysUsed >= TRIAL_DAYS) { showPaywall(); return }
+    if (daysUsed < TRIAL_DAYS) return
   }
+  showPaywall()
 }
 
 function trialDaysLeft() {
