@@ -4,11 +4,12 @@
    =================================== */
 
 // ── CONFIG — PASTE YOUR KEYS HERE ──────────────────────
-const SUPABASE_URL      = 'https://pufid1fcdosihqcnfcdu.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1ZmlkMWZjZG9zaWhxY25mY2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1NjU2MDksImV4cCI6MjA5MjE0MTYwOX0.RzpCrWETYphY-1dV8JOp_7E-DcjZrN26HLGBqfxg110'
+const SUPABASE_URL      = 'https://pufidlfcdosihqcnfcdu.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1ZmlkbGZjZG9zaWhxY25mY2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MjY4MjQsImV4cCI6MjA5MjEwMjgyNH0.RzpCrWETYphY-1dV8JOp_7E-DcjZrN26HLGBqfxg110'
 const STRIPE_STARTER_LINK = 'https://buy.stripe.com/4gMbIU5vlfbrcCW0rG8N207'
 const STRIPE_GROWTH_LINK  = 'https://buy.stripe.com/3cIeV66zp8N30Ue3DS8N208'
 const STRIPE_PRO_LINK     = 'https://buy.stripe.com/dRm4gs2j9d3jcCW4HW8N209'
+const ANTHROPIC_KEY_STORAGE = 'grantwise_anthropic_key'
 
 // ── SUPABASE ────────────────────────────────────────────
 const { createClient } = supabase
@@ -23,7 +24,6 @@ let currentText       = ''
 
 const TRIAL_DAYS    = 7
 const STARTER_LIMIT = 20
-const GROWTH_LIMIT  = 60
 
 const TIPS = {
   'executive summary':   ['Keep it to 1–2 paragraphs — funders read dozens.','Lead with the problem, then solution, then the ask.','Mention your EIN and 501(c)(3) for credibility.'],
@@ -35,39 +35,37 @@ const TIPS = {
 }
 
 // ── INIT ────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', async () => {
-  const { data: { session } } = await sb.auth.getSession()
-  if (!session) {
-    sb.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        currentUser = session.user
-        loadProfile()
-      } else {
-        window.location.href = 'login.html'
-      }
-    })
-    return
-  }
-
-  currentUser = session.user
-  await loadProfile()
-  checkAccess()
-  wireNav()
-  wireGrantTypes()
-  wireSectionPills()
-  renderTips()
-
-  document.getElementById('signoutLink').addEventListener('click', async e => {
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('signoutLink')?.addEventListener('click', async e => {
     e.preventDefault()
     await sb.auth.signOut()
     window.location.href = 'login.html'
   })
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (!session) {
+      if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+        window.location.href = 'login.html'
+      }
+      return
+    }
+    if (currentUser) return
+    currentUser = session.user
+    await loadProfile()
+    checkAccess()
+    wireNav()
+    wireGrantTypes()
+    wireSectionPills()
+    renderTips()
+    loadApiKey()
+  })
 })
 
-// ── LOAD PROFILE ────────────────────────────────────────
+// ── LOAD PROFILE FROM SUPABASE ──────────────────────────
 async function loadProfile() {
   const { data, error } = await sb.from('profiles').select('*').eq('id', currentUser.id).single()
   if (error || !data) {
+    // Create profile if missing
     const newProfile = {
       id: currentUser.id,
       email: currentUser.email,
@@ -89,14 +87,16 @@ async function loadProfile() {
 function checkAccess() {
   if (!userProfile) return
   const plan = userProfile.plan
-  if (plan === 'pro') return
-  if (plan === 'growth' && userProfile.proposals_used < GROWTH_LIMIT) return
+
+  if (plan === 'pro') return // full access
   if (plan === 'starter' && userProfile.proposals_used < STARTER_LIMIT) return
+
   if (plan === 'trial') {
-    const days = trialDaysLeft()
-    if (days > 0) return
+    const trialStart = new Date(userProfile.trial_start)
+    const now = new Date()
+    const daysUsed = Math.floor((now - trialStart) / (1000 * 60 * 60 * 24))
+    if (daysUsed >= TRIAL_DAYS) { showPaywall(); return }
   }
-  showPaywall()
 }
 
 function trialDaysLeft() {
@@ -107,31 +107,32 @@ function trialDaysLeft() {
   return Math.max(0, TRIAL_DAYS - daysUsed)
 }
 
-// ── RENDER STATUS ────────────────────────────────────────
+// ── RENDER STATUS BAR ────────────────────────────────────
 function renderStatus() {
   if (!userProfile) return
   const plan = userProfile.plan
   const used = userProfile.proposals_used || 0
+
+  // Sidebar plan badge
   const planBadge = document.getElementById('planBadge')
-  if (planBadge) planBadge.textContent = plan === 'trial' ? 'Trial' : plan === 'starter' ? 'Starter' : plan === 'growth' ? 'Growth' : 'Pro'
+  if (planBadge) planBadge.textContent = plan === 'trial' ? 'Trial' : plan === 'starter' ? 'Starter' : 'Pro'
+
+  // Usage bar
   const bar = document.getElementById('usageBar')
   const label = document.getElementById('usageLabel')
   const topbar = document.getElementById('topbarStatus')
+
   if (plan === 'pro') {
     if (bar) bar.style.width = '20%'
     if (label) label.textContent = 'Unlimited proposals'
     if (topbar) topbar.textContent = '✦ Pro — unlimited'
-  } else if (plan === 'growth') {
-    const pct = Math.min(100, (used / GROWTH_LIMIT) * 100)
-    if (bar) bar.style.width = pct + '%'
-    if (label) label.textContent = `${used} / ${GROWTH_LIMIT} proposals`
-    if (topbar) topbar.textContent = `⚡ ${GROWTH_LIMIT - used} left`
   } else if (plan === 'starter') {
     const pct = Math.min(100, (used / STARTER_LIMIT) * 100)
     if (bar) bar.style.width = pct + '%'
     if (label) label.textContent = `${used} / ${STARTER_LIMIT} proposals`
     if (topbar) topbar.textContent = `⚡ ${STARTER_LIMIT - used} left`
   } else {
+    // Trial
     const days = trialDaysLeft()
     if (bar) bar.style.width = ((TRIAL_DAYS - days) / TRIAL_DAYS * 100) + '%'
     if (label) label.textContent = `${used} proposals written`
@@ -147,9 +148,10 @@ function showPaywall() {
 }
 
 function checkout(plan) {
-  const urls = { starter: STRIPE_STARTER_LINK, growth: STRIPE_GROWTH_LINK, pro: STRIPE_PRO_LINK }
-  const url = urls[plan] || STRIPE_STARTER_LINK
-  window.open(url + '?prefilled_email=' + encodeURIComponent(currentUser.email), '_blank')
+  const url = plan === 'pro' ? STRIPE_PRO_LINK : STRIPE_STARTER_LINK
+  // Pass email so Stripe pre-fills it
+  const fullUrl = url + '?prefilled_email=' + encodeURIComponent(currentUser.email)
+  window.open(fullUrl, '_blank')
 }
 
 // ── NAV ──────────────────────────────────────────────────
@@ -204,10 +206,44 @@ function renderTips() {
   list.innerHTML = tips.map(t => `<div class="tip-item"><div class="tip-dot"></div><span>${t}</span></div>`).join('')
 }
 
-// ── GENERATE — uses /api/generate edge function ──────────
-async function generate() {
-  if (!canGenerate()) { showPaywall(); return }
+// ── API KEY ───────────────────────────────────────────────
+function loadApiKey() {
+  const key = localStorage.getItem(ANTHROPIC_KEY_STORAGE)
+  if (key) {
+    const el = document.getElementById('apiKeyInput')
+    const el2 = document.getElementById('apiKeyAccount')
+    if (el) el.value = key
+    if (el2) el2.value = key
+  }
+}
 
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput')?.value?.trim()
+  if (!val) return
+  localStorage.setItem(ANTHROPIC_KEY_STORAGE, val)
+  const el2 = document.getElementById('apiKeyAccount')
+  if (el2) el2.value = val
+  flashBtn(document.querySelector('#view-write .save-key-btn'))
+}
+
+function saveApiKeyAccount() {
+  const val = document.getElementById('apiKeyAccount')?.value?.trim()
+  if (!val) return
+  localStorage.setItem(ANTHROPIC_KEY_STORAGE, val)
+  const el = document.getElementById('apiKeyInput')
+  if (el) el.value = val
+  flashBtn(document.querySelector('#view-account .save-key-btn'))
+}
+
+// ── GENERATE ─────────────────────────────────────────────
+async function generate() {
+  // Access check
+  if (!canGenerate()) {
+    showPaywall()
+    return
+  }
+
+  const apiKey  = localStorage.getItem(ANTHROPIC_KEY_STORAGE)
   const mission = document.getElementById('missionInput')?.value?.trim()
   const project = document.getElementById('projectInput')?.value?.trim()
   const funder  = document.getElementById('funderInput')?.value?.trim()
@@ -215,6 +251,7 @@ async function generate() {
 
   if (!mission) { shake(document.getElementById('missionInput')); showToast('Please describe your mission.'); return }
   if (!project) { shake(document.getElementById('projectInput')); showToast('Please describe your project.'); return }
+  if (!apiKey)  { shake(document.getElementById('apiKeyInput'));  showToast('Please save your Anthropic API key.'); return }
 
   const btn  = document.getElementById('writeBtn')
   const card = document.getElementById('outputCard')
@@ -225,26 +262,40 @@ async function generate() {
   card.classList.add('generating')
   body.innerHTML = '<span id="streamOut"></span><span class="cursor"></span>'
 
+  const orgCtx = userProfile?.org_name ? `Organization: ${userProfile.org_name}.` : ''
+  const prompt = `You are an expert nonprofit grant writer. Write a compelling "${selectedSection}" for a ${selectedGrantType} proposal.
+
+${orgCtx}
+Mission: ${mission}
+Funder: ${funder || 'not specified'}
+Project: ${project}
+Amount requested: ${amount || 'not specified'}
+
+Write only the "${selectedSection}" — no headings, no preamble. Polished, submission-ready text in 2–4 paragraphs. Be specific to the information provided.`
+
   let fullText = ''
 
   try {
-    const res = await fetch('/api/generate', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
       body: JSON.stringify({
-        grantType: selectedGrantType,
-        section:   selectedSection,
-        mission,
-        funder,
-        project,
-        amount,
-        orgName: userProfile?.org_name || '',
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1200,
+        stream: true,
+        system: 'You are an expert nonprofit grant writer with 20 years of experience. Write in a professional, mission-driven voice. Be specific, avoid jargon. No placeholder text.',
+        messages: [{ role: 'user', content: prompt }],
       }),
     })
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
-      throw new Error(err?.error || `Server error ${res.status}`)
+      throw new Error(err?.error?.message || `API error ${res.status}`)
     }
 
     const reader  = res.body.getReader()
@@ -272,13 +323,14 @@ async function generate() {
     body.innerHTML = `<span style="color:var(--text)">${esc(fullText)}</span>`
     currentText = fullText
 
+    // Increment usage count in Supabase
     const newCount = (userProfile.proposals_used || 0) + 1
     await sb.from('profiles').update({ proposals_used: newCount }).eq('id', currentUser.id)
     userProfile.proposals_used = newCount
     renderStatus()
 
   } catch(err) {
-    body.innerHTML = `<span style="color:#b43232">Error: ${esc(err.message)}\n\nPlease try again.</span>`
+    body.innerHTML = `<span style="color:#b43232">Error: ${esc(err.message)}\n\nCheck your API key and try again.</span>`
   }
 
   card.classList.remove('generating')
@@ -289,14 +341,14 @@ async function generate() {
 function canGenerate() {
   if (!userProfile) return false
   const plan = userProfile.plan
-  const used = userProfile.proposals_used || 0
   if (plan === 'pro') return true
-  if (plan === 'growth') return used < GROWTH_LIMIT
-  if (plan === 'starter') return used < STARTER_LIMIT
-  return trialDaysLeft() > 0
+  if (plan === 'starter') return (userProfile.proposals_used || 0) < STARTER_LIMIT
+  // trial
+  const days = trialDaysLeft()
+  return days > 0
 }
 
-// ── SAVE PROPOSAL ─────────────────────────────────────────
+// ── SAVE PROPOSAL TO SUPABASE ─────────────────────────────
 async function saveProposal() {
   if (!currentText) return
   const { error } = await sb.from('proposals').insert({
@@ -308,18 +360,22 @@ async function saveProposal() {
     created_at: new Date().toISOString(),
   })
   if (error) { showToast('Error saving — ' + error.message); return }
+
   const btn = document.querySelector('.card-action-btn:nth-child(2)')
   if (btn) { btn.classList.add('success'); btn.textContent = '✓ Saved'; setTimeout(() => { btn.classList.remove('success'); btn.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path d="M5 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v14l-5-2.5L5 18V4z"/></svg> Save` }, 1800) }
   showToast('Saved to My proposals.')
 }
 
-// ── LOAD PROPOSALS ────────────────────────────────────────
+// ── LOAD PROPOSALS FROM SUPABASE ──────────────────────────
 async function loadProposals() {
   const grid = document.getElementById('proposalsGrid')
   if (!grid) return
   grid.innerHTML = '<p class="empty-msg" style="color:var(--text3)">Loading…</p>'
+
   const { data, error } = await sb.from('proposals').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false })
+
   if (error || !data?.length) { grid.innerHTML = '<p class="empty-msg">No proposals saved yet.</p>'; return }
+
   grid.innerHTML = ''
   data.forEach(p => {
     const card = document.createElement('div')
@@ -368,7 +424,7 @@ async function saveOrgProfile() {
   showToast('Org profile saved ✓')
 }
 
-// ── ACCOUNT ───────────────────────────────────────────────
+// ── ACCOUNT VIEW ──────────────────────────────────────────
 function renderAccountView() {
   if (!userProfile) return
   const days = trialDaysLeft()
@@ -376,7 +432,8 @@ function renderAccountView() {
   document.getElementById('acctEmail').textContent  = userProfile.email || currentUser.email
   document.getElementById('acctPlan').textContent   = cap(userProfile.plan || 'trial')
   document.getElementById('acctTrial').textContent  = userProfile.plan === 'trial' ? (days + ' days left') : 'N/A'
-  document.getElementById('acctUsage').textContent  = (userProfile.proposals_used || 0) + (userProfile.plan === 'pro' ? ' (unlimited)' : userProfile.plan === 'growth' ? ` / ${GROWTH_LIMIT}` : userProfile.plan === 'starter' ? ` / ${STARTER_LIMIT}` : '')
+  document.getElementById('acctUsage').textContent  = (userProfile.proposals_used || 0) + (userProfile.plan === 'pro' ? ' (unlimited)' : userProfile.plan === 'starter' ? ` / ${STARTER_LIMIT}` : '')
+  loadApiKey()
 }
 
 // ── COPY OUTPUT ───────────────────────────────────────────
