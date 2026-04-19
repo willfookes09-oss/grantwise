@@ -188,9 +188,14 @@
           proposals_used: 0
         })
       }
-
-      setTimeout(() => { window.location.href = 'index.html' }, 3000)
-          btn.disabled = false; btn.textContent = 'Start free trial →'
+const { data: { session } } = await sb.auth.getSession()
+if (session) {
+  window.location.href = 'index.html'
+} else {
+  sb.auth.onAuthStateChange((event, session) => {
+    if (session) window.location.href = 'index.html'
+  })
+}
     }
 
     async function signIn() {
