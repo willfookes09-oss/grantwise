@@ -21,9 +21,10 @@ let selectedGrantType = 'Foundation grant'
 let selectedSection   = 'executive summary'
 let currentText       = ''
 
-const TRIAL_DAYS    = 7
+const TRIAL_DAYS    = 0
 const STARTER_LIMIT = 15
 const GROWTH_LIMIT  = 40
+const FREE_LIMIT = 5
 
 const TIPS = {
   'executive summary':   ['Keep it to 1–2 paragraphs — funders read dozens.','Lead with the problem, then solution, then the ask.','Mention your EIN and 501(c)(3) for credibility.'],
@@ -104,7 +105,7 @@ function canGenerate() {
   if (plan === 'pro') return true
   if (plan === 'growth') return (userProfile.proposals_used || 0) < GROWTH_LIMIT
   if (plan === 'starter') return (userProfile.proposals_used || 0) < STARTER_LIMIT
-  if (plan === 'trial') return trialDaysLeft() > 0
+  if (plan === 'trial') return (userProfile.proposals_used || 0) < FREE_LIMIT
   return false
 }
 
