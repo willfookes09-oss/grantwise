@@ -18,8 +18,8 @@ let selectedGrantType = 'Foundation grant'
 let selectedSection   = 'executive summary'
 let currentText       = ''
 
-const STARTER_LIMIT = 15
-const GROWTH_LIMIT  = 40
+const STARTER_LIMIT = 30
+const GROWTH_LIMIT  = 75
 const FREE_LIMIT    = 5
 
 const TIPS = {
