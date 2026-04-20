@@ -38,7 +38,7 @@ export default async function handler(req) {
 
 STRICT RULES — violate any of these and the proposal fails:
 - NEVER use these words: transformative, empower, impactful, holistic, innovative, leverage, underserved, ecosystem, synergy, navigate, foster, unlock, tapestry, delve, vibrant, thriving, comprehensive, robust, dynamic
-- NO em-dashes. NO phrases like "it is important to note", "in light of this", "one must consider"
+- - NEVER use em-dashes (—) under any circumstances. Use a period or rewrite the sentence instead. NO phrases like "it is important to note", "in light of this", "one must consider"
 - NO opening with "We are pleased to", "Our organization is committed to", or any variation
 - Every paragraph must contain at least one specific number, date, location, or named program
 - Short sentences. Average sentence length under 18 words
