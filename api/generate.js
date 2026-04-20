@@ -1,6 +1,15 @@
 export const config = { runtime: 'edge' }
 
 export default async function handler(req) {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      }
+    })
+  }
+
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 })
   }
@@ -8,10 +17,6 @@ export default async function handler(req) {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-  }
-
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
   }
 
   try {
@@ -25,19 +30,41 @@ export default async function handler(req) {
       })
     }
 
-    const orgCtx  = orgName ? `Organization: ${orgName}.` : ''
-    const funderLine = funder ? `Funder: ${funder}.` : ''
-    const amountLine = amount ? `Amount requested: ${amount}.` : ''
+    const orgCtx   = orgName  ? `Organization name: ${orgName}.`      : ''
+    const funderLine = funder ? `Funder and their stated priorities: ${funder}.` : ''
+    const amountLine = amount ? `Dollar amount being requested: ${amount}.`      : ''
 
-    const prompt = `You are an expert nonprofit grant writer with 20 years of experience. Write a compelling "${section}" for a ${grantType} proposal.
+    const systemPrompt = `You are a veteran nonprofit grant writer who has won over $40 million in grants across 15 years. Your writing style is known for three things: (1) blunt, specific sentences with real numbers — never vague claims, (2) a quiet urgency that comes from facts, not adjectives, and (3) writing that sounds like a real human being wrote it at 11pm because they believe in the cause.
+
+STRICT RULES — violate any of these and the proposal fails:
+- NEVER use these words: transformative, empower, impactful, holistic, innovative, leverage, underserved, ecosystem, synergy, navigate, foster, unlock, tapestry, delve, vibrant, thriving, comprehensive, robust, dynamic
+- NO em-dashes. NO phrases like "it is important to note", "in light of this", "one must consider"
+- NO opening with "We are pleased to", "Our organization is committed to", or any variation
+- Every paragraph must contain at least one specific number, date, location, or named program
+- Short sentences. Average sentence length under 18 words
+- Write like you are talking to a smart person who has read 200 proposals today and is tired of fluff
+- The writing should feel like it came from someone inside the organization, not a consultant
+
+TONE EXAMPLE — this is the voice to use:
+Bad: "Our transformative program empowers underserved youth to unlock their potential through holistic approaches."
+Good: "Last year, 94 of our 102 graduates passed their GED on the first attempt. The state average is 61%."
+
+That is the difference. Facts over adjectives. Always.`
+
+    const userPrompt = `Write the "${section}" section for a ${grantType} grant proposal.
 
 ${orgCtx}
 Mission: ${mission}
 ${funderLine}
-Project: ${project}
+Project description: ${project}
 ${amountLine}
 
-Write only the "${section}" — no headings, no preamble. Polished, submission-ready text in 2-4 paragraphs. Be specific. Write in a warm, compelling, human voice that moves funders emotionally while making a strong logical case.`
+Instructions:
+- Write ONLY the "${section}" section — no heading, no preamble, no "here is your section"
+- 2 to 3 paragraphs, each one punchy and specific
+- Mirror the funder's language and priorities back to them if they were provided
+- End with a sentence that makes the reader want to fund this — not a generic closer, something real
+- Do not invent statistics. If the user gave you numbers, use them. If not, write around it without making things up.`
 
     const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -47,11 +74,11 @@ Write only the "${section}" — no headings, no preamble. Polished, submission-r
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-       model: 'claude-sonnet-4-5',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1200,
         stream: false,
-        system: 'You are an expert nonprofit grant writer. Write professionally and compellingly. Avoid AI clichés: never use words like tapestry, delve, unleash, it is important to note, navigate, landscape, foster, unlock. Write like a seasoned human grant writer with real passion for the mission.',
-        messages: [{ role: 'user', content: prompt }],
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
       }),
     })
 
@@ -63,12 +90,11 @@ Write only the "${section}" — no headings, no preamble. Polished, submission-r
       })
     }
 
-    return new Response(anthropicRes.body, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-      }
+    const data = await anthropicRes.json()
+    const text = data.content?.[0]?.text || ''
+
+    return new Response(JSON.stringify({ content: [{ text }] }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
   } catch (err) {
