@@ -8,6 +8,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="/style.css"/>
+  <script>
+window.addEventListener('load', () => {
+  const sb2 = supabase.createClient('https://pufid1fcdosihqcnfcdu.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1ZmlkMWZjZG9zaWhxY25mY2R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1NjU2MDksImV4cCI6MjA5MjE0MTYwOX0.RzpCrWETYphY-1dV8JOp_7E-DcjZrN26HLGBqfxg110')
+  sb2.auth.getSession().then(({data}) => {
+    if (!data.session) window.location.replace('login.html')
+  })
+})
+</script>
 </head>
 <body>
 
