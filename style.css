@@ -152,3 +152,15 @@ textarea::placeholder, input::placeholder { color: var(--text3); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
 @media (max-width:750px) { .sidebar { position: absolute; height: 100vh; } .inputs-col { width: 100%; border-right: none; } .workspace { flex-direction: column; overflow-y: auto; } .output-col { padding: 14px; } .pw-plans { grid-template-columns: 1fr; } }
+
+/* MOBILE FIXES */
+@media (max-width:750px) {
+  html, body { overflow: auto; height: auto; }
+  .sidebar { position: fixed; left: -240px; height: 100vh; z-index: 200; transition: left 0.25s ease; }
+  .sidebar.open { left: 0; }
+  .main { width: 100% !important; }
+  .inputs-col { width: 100%; border-right: none; }
+  .workspace { flex-direction: column; overflow-y: auto; }
+  .output-col { padding: 14px; }
+  .pw-plans { grid-template-columns: 1fr; }
+}
