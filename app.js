@@ -31,20 +31,15 @@ const TIPS = {
   'evaluation plan':     ['Measure both outputs and outcomes.','Name specific data collection tools.','State who is responsible for evaluation.'],
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('signoutLink')?.addEventListener('click', async e => {
     e.preventDefault()
     await sb.auth.signOut()
     window.location.href = 'login.html'
   })
 
-  sb.auth.onAuthStateChange(async (event, session) => {
-    if (!session) {
-      if (event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
-        window.location.href = 'login.html'
-      }
-      return
-    }
+  async function initApp(session) {
+    if (!session) { window.location.href = 'login.html'; return }
     if (currentUser) return
     currentUser = session.user
     await loadProfile()
@@ -53,7 +48,21 @@ document.addEventListener('DOMContentLoaded', () => {
     wireGrantTypes()
     wireSectionPills()
     renderTips()
-  })
+  }
+
+  const { data: { session } } = await sb.auth.getSession()
+  if (session) {
+    await initApp(session)
+  } else {
+    const { data: { subscription } } = sb.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN') {
+        subscription.unsubscribe()
+        await initApp(session)
+      } else if (event === 'INITIAL_SESSION' && !session) {
+        window.location.href = 'login.html'
+      }
+    })
+  }
 })
 
 async function loadProfile() {
@@ -158,7 +167,17 @@ function wireNav() {
 }
 
 function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('closed')
+  const sidebar = document.getElementById('sidebar')
+  const overlay = document.getElementById('sidebarOverlay')
+  sidebar.classList.toggle('open')
+  if (overlay) overlay.classList.toggle('show')
+}
+
+function closeSidebar() {
+  const sidebar = document.getElementById('sidebar')
+  const overlay = document.getElementById('sidebarOverlay')
+  sidebar.classList.remove('open')
+  if (overlay) overlay.classList.remove('show')
 }
 
 function wireGrantTypes() {
