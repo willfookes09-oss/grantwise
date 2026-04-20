@@ -15,7 +15,7 @@ button { cursor: pointer; font-family: var(--ff-body); }
 
 /* PAYWALL */
 .paywall-overlay { position: fixed; inset: 0; background: rgba(46,31,14,.6); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
-.paywall-modal { background: #fff; border-radius: 20px; padding: 48px 44px; max-width: 620px; width: 100%; text-align: center; box-shadow: 0 32px 80px rgba(46,31,14,.2); }
+.paywall-modal { background: #fff; position:relative, border-radius: 20px; padding: 48px 44px; max-width: 620px; width: 100%; text-align: center; box-shadow: 0 32px 80px rgba(46,31,14,.2); }
 .pw-icon { font-size: 28px; color: var(--olive); margin-bottom: 16px; }
 .pw-title { font-family: var(--ff-head); font-size: 26px; font-weight: 600; color: var(--brown); margin-bottom: 10px; }
 .pw-sub { font-size: 14px; color: var(--text2); margin-bottom: 32px; line-height: 1.6; }
