@@ -240,6 +240,7 @@ async function generate() {
         section:   selectedSection,
         mission, funder, project, amount,
         orgName: userProfile?.org_name || '',
+         rfp: document.getElementById('rfpInput')?.value?.trim() || '',
       }),
     })
 
