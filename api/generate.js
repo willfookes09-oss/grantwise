@@ -21,7 +21,7 @@ export default async function handler(req) {
 
   try {
     const body = await req.json()
-    const { grantType, section, mission, funder, project, amount, orgName } = body
+    const { grantType, section, mission, funder, project, amount, orgName, rfp } = body
 
     if (!mission || !project) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -30,15 +30,16 @@ export default async function handler(req) {
       })
     }
 
-    const orgCtx   = orgName  ? `Organization name: ${orgName}.`      : ''
-    const funderLine = funder ? `Funder and their stated priorities: ${funder}.` : ''
-    const amountLine = amount ? `Dollar amount being requested: ${amount}.`      : ''
+    const orgCtx     = orgName ? `Organization name: ${orgName}.` : ''
+    const funderLine = funder  ? `Funder and their stated priorities: ${funder}.` : ''
+    const amountLine = amount  ? `Dollar amount being requested: ${amount}.` : ''
+    const rfpLine    = rfp     ? `\nFUNDER RFP / REQUIREMENTS:\n${rfp}\n\nCRITICAL: The funder requirements above are the most important input. Every paragraph must directly address their stated priorities. Mirror their exact language and terminology. If they list specific outcomes or populations they fund, align the proposal explicitly to those.` : ''
 
     const systemPrompt = `You are a veteran nonprofit grant writer who has won over $40 million in grants across 15 years. Your writing style is known for three things: (1) blunt, specific sentences with real numbers — never vague claims, (2) a quiet urgency that comes from facts, not adjectives, and (3) writing that sounds like a real human being wrote it at 11pm because they believe in the cause.
 
 STRICT RULES — violate any of these and the proposal fails:
 - NEVER use these words: transformative, empower, impactful, holistic, innovative, leverage, underserved, ecosystem, synergy, navigate, foster, unlock, tapestry, delve, vibrant, thriving, comprehensive, robust, dynamic
-- - NEVER use em-dashes (—) under any circumstances. Use a period or rewrite the sentence instead. NO phrases like "it is important to note", "in light of this", "one must consider"
+- NEVER use em-dashes (—) under any circumstances. Use a period or rewrite the sentence instead. NO phrases like "it is important to note", "in light of this", "one must consider"
 - NO opening with "We are pleased to", "Our organization is committed to", or any variation
 - Every paragraph must contain at least one specific number, date, location, or named program
 - Short sentences. Average sentence length under 18 words
@@ -58,11 +59,13 @@ Mission: ${mission}
 ${funderLine}
 Project description: ${project}
 ${amountLine}
+${rfpLine}
 
 Instructions:
 - Write ONLY the "${section}" section — no heading, no preamble, no "here is your section"
 - 2 to 3 paragraphs, each one punchy and specific
 - Mirror the funder's language and priorities back to them if they were provided
+- If RFP guidelines were provided, prioritize alignment to those above everything else
 - End with a sentence that makes the reader want to fund this — not a generic closer, something real
 - Do not invent statistics. If the user gave you numbers, use them. If not, write around it without making things up.`
 
