@@ -111,6 +111,10 @@
         My proposals
       </a>
       <a href="#" class="nav-link" data-view="org">
+        <a href="#" class="nav-link" data-view="eligibility">
+  <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm3.707-9.293a1 1 0 0 0-1.414-1.414L9 10.586 7.707 9.293a1 1 0 0 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l4-4z" clip-rule="evenodd"/></svg>
+  Should I apply?
+</a>
         <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a1 1 0 1 1 0 2h-3a1 1 0 0 1-1-1v-2a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v2a1 1 0 0 1-1 1H4a1 1 0 1 1 0-2V4zm3 1h2v2H7V5zm2 4H7v2h2V9zm2-4h2v2h-2V5zm2 4h-2v2h2V9z" clip-rule="evenodd"/></svg>
         Org profile
       </a>
@@ -250,7 +254,48 @@
         </section>
       </div>
     </div>
-
+<!-- ELIGIBILITY VIEW -->
+<div class="view" id="view-eligibility">
+  <div class="workspace">
+    <section class="inputs-col">
+      <div class="input-block">
+        <label class="block-label">Grant RFP / Requirements</label>
+        <textarea id="eligRFP" rows="8" placeholder="Paste the full funder RFP, guidelines, or requirements here..."></textarea>
+      </div>
+      <div class="input-block">
+        <label class="block-label">Your organization mission</label>
+        <textarea id="eligMission" rows="3" placeholder="Your mission statement..."></textarea>
+      </div>
+      <div class="input-block">
+        <label class="block-label">Your programs & track record</label>
+        <textarea id="eligPrograms" rows="3" placeholder="Key programs, impact numbers, years operating..."></textarea>
+      </div>
+      <button class="write-btn" id="eligBtn" onclick="checkEligibility()">
+        <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm3.707-9.293a1 1 0 0 0-1.414-1.414L9 10.586 7.707 9.293a1 1 0 0 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l4-4z" clip-rule="evenodd"/></svg>
+        Should I apply?
+      </button>
+    </section>
+    <section class="output-col">
+      <div class="output-card" id="eligCard">
+        <div class="output-card-header">
+          <span class="output-section-badge">Eligibility Analysis</span>
+        </div>
+        <div class="output-body" id="eligBody">
+          <div class="empty-state">
+            <div class="empty-ornament">
+              <div class="orn-ring orn-r1"></div>
+              <div class="orn-ring orn-r2"></div>
+              <div class="orn-leaf">?</div>
+            </div>
+            <p class="empty-title">Should you apply?</p>
+            <p class="empty-sub">Paste the funder's RFP and your org details<br>to get an instant eligibility analysis</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+    
     <!-- PROPOSALS VIEW -->
     <div class="view" id="view-proposals">
       <div class="inner-view">
