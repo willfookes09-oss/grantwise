@@ -65,7 +65,14 @@ Rules:
     }
 
     const data = await anthropicRes.json()
-    return new Response(JSON.stringify({ content: [{ text: data.content?.[0]?.text || '{}' }] }), {
+let rawText = data.content?.[0]?.text || '{}'
+// Strip any text before the JSON
+const jsonStart = rawText.indexOf('{')
+const jsonEnd = rawText.lastIndexOf('}')
+if (jsonStart !== -1 && jsonEnd !== -1) {
+  rawText = rawText.slice(jsonStart, jsonEnd + 1)
+}
+return new Response(JSON.stringify({ content: [{ text: rawText }] }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
 
