@@ -390,8 +390,11 @@ async function checkEligibility() {
         <div style="font-size:48px;margin-bottom:8px">${icon}</div>
         <div style="font-size:28px;font-weight:700;color:${color};font-family:var(--ff-head)">${result.verdict === 'APPLY' ? 'Apply for this grant' : result.verdict === 'SKIP' ? 'Skip this grant' : 'Uncertain — needs review'}</div>
         <div style="font-size:48px;font-weight:700;color:${color};margin:8px 0">${result.win_chance}%</div>
-        <div style="font-size:13px;color:var(--text2)">estimated win chance</div>
-      </div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:16px">estimated win chance</div>
+        <div style="text-align:left;border-top:1px solid ${color}33;padding-top:14px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:${color};margin-bottom:8px">Why:</div>
+          ${(result.dealbreakers || []).slice(0,3).map(d => `<div style="font-size:13px;color:var(--text);margin-bottom:6px;display:flex;gap:6px"><span style="color:${color};flex-shrink:0">✗</span>${esc(d)}</div>`).join('')}
+        </div>
 
       <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:12px">Recommendation</div>
