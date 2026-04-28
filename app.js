@@ -346,6 +346,78 @@ function esc(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;'
 function shortType(t) { return {'Foundation grant':'Foundation','Federal government grant':'Federal','Corporate grant':'Corporate','Community/local grant':'Community'}[t] || t.slice(0,12) }
 function shake(el) { if (!el) return; el.style.animation='none'; el.offsetHeight; el.style.animation='shake .35s ease'; el.addEventListener('animationend',()=>el.style.animation='',{once:true}) }
 function showToast(msg) { const t=document.getElementById('toast'); if(!t)return; t.textContent=msg; t.style.opacity='1'; clearTimeout(t._t); t._t=setTimeout(()=>{t.style.opacity='0'},2600) }
+async function checkEligibility() {
+  const rfp      = document.getElementById('eligRFP')?.value?.trim()
+  const mission  = document.getElementById('eligMission')?.value?.trim()
+  const programs = document.getElementById('eligPrograms')?.value?.trim()
+
+  if (!rfp) { shake(document.getElementById('eligRFP')); showToast('Please paste the funder RFP.'); return }
+
+  const btn  = document.getElementById('eligBtn')
+  const body = document.getElementById('eligBody')
+  const card = document.getElementById('eligCard')
+
+  btn.disabled = true
+  btn.innerHTML = '<span class="spin-inline"></span> Analyzing...'
+  card.classList.add('generating')
+
+  const messages = ['Analyzing eligibility...', 'Checking requirements...', 'Scoring competitiveness...', 'Building your verdict...']
+  let mi = 0
+  const interval = setInterval(() => {
+    btn.innerHTML = `<span class="spin-inline"></span> ${messages[mi % messages.length]}`
+    mi++
+  }, 1200)
+
+  try {
+    const res = await fetch('/api/eligibility', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rfp, mission, programs }),
+    })
+
+    if (!res.ok) throw new Error('Server error')
+
+    const data = await res.json()
+    const result = JSON.parse(data.content?.[0]?.text || '{}')
+
+    const isApply = result.verdict === 'APPLY'
+    const color   = isApply ? '#4a5c3a' : '#b43232'
+    const bg      = isApply ? '#eaf3de' : '#fef2f2'
+    const icon    = isApply ? '✅' : '❌'
+
+    body.innerHTML = `
+      <div style="background:${bg};border-radius:12px;padding:24px;text-align:center;margin-bottom:20px">
+        <div style="font-size:48px;margin-bottom:8px">${icon}</div>
+        <div style="font-size:28px;font-weight:700;color:${color};font-family:var(--ff-head)">${result.verdict === 'APPLY' ? 'Apply for this grant' : result.verdict === 'SKIP' ? 'Skip this grant' : 'Uncertain — needs review'}</div>
+        <div style="font-size:48px;font-weight:700;color:${color};margin:8px 0">${result.win_chance}%</div>
+        <div style="font-size:13px;color:var(--text2)">estimated win chance</div>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:12px">Recommendation</div>
+        <div style="font-size:14px;color:var(--text);line-height:1.6">${esc(result.recommendation)}</div>
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:14px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#b43232;margin-bottom:12px">Top dealbreakers</div>
+        ${(result.dealbreakers || []).map(d => `<div style="display:flex;gap:8px;margin-bottom:8px;font-size:13.5px;color:var(--text2)"><span style="color:#b43232;flex-shrink:0">✗</span>${esc(d)}</div>`).join('')}
+      </div>
+
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--olive);margin-bottom:12px">Key requirements to meet</div>
+        ${(result.requirements || []).map(r => `<div style="display:flex;gap:8px;margin-bottom:8px;font-size:13.5px;color:var(--text2)"><span style="color:var(--olive);flex-shrink:0">✓</span>${esc(r)}</div>`).join('')}
+      </div>
+    `
+
+  } catch(err) {
+    body.innerHTML = `<span style="color:#b43232">Error: ${esc(err.message)}</span>`
+  }
+
+  clearInterval(interval)
+  card.classList.remove('generating')
+  btn.disabled = false
+  btn.innerHTML = `<svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zm3.707-9.293a1 1 0 0 0-1.414-1.414L9 10.586 7.707 9.293a1 1 0 0 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l4-4z" clip-rule="evenodd"/></svg> Should I apply?`
+}
 
 const s = document.createElement('style')
 s.textContent = '.spin-inline{display:inline-block;width:13px;height:13px;border:2px solid rgba(250,247,242,.35);border-top-color:var(--cream);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}'
