@@ -18,9 +18,9 @@ let selectedGrantType = 'Foundation grant'
 let selectedSection   = 'executive summary'
 let currentText       = ''
 
-const STARTER_LIMIT = 30
-const GROWTH_LIMIT  = 75
-const FREE_LIMIT    = 5
+const STARTER_LIMIT = 50
+const GROWTH_LIMIT  = 100
+const FREE_LIMIT    = 10
 
 const TIPS = {
   'executive summary':   ['Keep it to 1-2 paragraphs - funders read dozens.','Lead with the problem, then solution, then the ask.','Mention your EIN and 501(c)(3) for credibility.'],
