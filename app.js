@@ -253,6 +253,16 @@ async function generate() {
     fullText = data.content?.[0]?.text || ''
     body.innerHTML = '<span style="color:var(--text)">' + esc(fullText) + '</span>'
     currentText = fullText
+     if (currentText) {
+  sb.from('proposals').insert({
+    user_id: currentUser.id,
+    grant_type: selectedGrantType,
+    section: selectedSection,
+    funder: document.getElementById('funderInput')?.value?.trim() || '',
+    content: currentText,
+    created_at: new Date().toISOString(),
+  }).then(() => showToast('Auto-saved to My proposals ✓'))
+}
 
     const newCount = (userProfile.proposals_used || 0) + 1
     await sb.from('profiles').update({ proposals_used: newCount }).eq('id', currentUser.id)
